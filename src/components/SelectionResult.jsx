@@ -23,13 +23,28 @@ const SelectionResult = () => {
 
   const info = zoneInfo[region];
 
+  useEffect(() => {
+    alert(
+      `Selection Result Loaded\n\nqrId: ${qrId}\nregion: ${region}\nvideo: ${
+        info?.videoUrl || "Not Found"
+      }`
+    );
+  }, [qrId, region]);
+
   if (!info) return <div>Invalid selection.</div>;
 
   return (
     <div style={{ padding: "40px", textAlign: "center", color: "#333" }}>
       <h2>{info.title}</h2>
       <p>QR ID: {qrId}</p>
-      <video src={info.videoUrl} controls autoPlay style={{ maxWidth: "90%", maxHeight: "70vh" }} />
+      <video 
+      src={info.videoUrl} 
+      controls 
+      autoPlay 
+      muted 
+      style={{ maxWidth: "90%", maxHeight: "70vh" }} 
+      onError={(e) => alert("Failed to load video. Check video URL.")}
+      />
     </div>
   );
 };
