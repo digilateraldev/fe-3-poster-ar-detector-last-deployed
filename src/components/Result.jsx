@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { FiDownload } from "react-icons/fi";
 import { FaSquareCheck } from "react-icons/fa6";
 
 const zoneInfo = {
   hurry: {
-    title: "I eat in hurry",
+    title: "I eat in a hurry",
     fileType: "mp4",
     videoUrl: "/videos/hurry.mp4",
   },
@@ -23,12 +23,74 @@ const zoneInfo = {
 
 const Result = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const qrId = searchParams.get("qrId");
   const region = searchParams.get("region");
 
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false); // Added loading state for consistency
+  const [loading, setLoading] = useState(false); 
+
+  useEffect(() => {
+    if (!qrId || !region) return;
+  
+    let retries = 0;
+    const maxRetries = 3;
+  
+    const submitSelection = async () => {
+      try {
+        setLoading(true);
+        await apiUtils.post("/selection/store", {
+          qrId,
+          selection: region,
+        });
+        console.log("Submission successful");
+        setError(null);
+      } catch (err) {
+        console.error(`Submission failed (attempt ${retries + 1})`, err);
+        retries++;
+      
+        if (retries < maxRetries) {
+          console.log("Retrying in 3 seconds...");
+          setTimeout(submitSelection, 3000);
+        } else {
+          const errorMessage = err?.message || JSON.stringify(err) || "Unknown error";
+          setError(
+            `Failed to submit your response after multiple attempts.\n\nReason: ${errorMessage}`
+          );
+        }
+      }
+       finally {
+        setLoading(false);
+      }
+    };
+  
+    submitSelection();
+  }, [qrId, region]);
+  
+  
+
+  useEffect(() => {
+    // Clear URL parameters when component mounts
+    const cleanUrl = () => {
+      if (window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    cleanUrl();
+
+    // Set up beforeunload event to clear parameters if user refreshes
+    window.addEventListener("beforeunload", cleanUrl);
+    
+    // Clean up on unmount
+    return () => {
+      window.removeEventListener("beforeunload", cleanUrl);
+      // cleanUrl();
+    };
+  }, []);
+
+
 
   useEffect(() => {
     if (!region || !zoneInfo[region]) {
@@ -57,46 +119,57 @@ const Result = () => {
   }
 
   return (
-    <div className="flex justify-center items-start w-full px-4 py-4 bg-[#f3e8d4] h-[100dvh]">
-      {data && data.length > 0 ? (
-        <div className="space-y-4 w-full max-w-2xl">
-          <div className="border-2 border-[#046a81] flex items-center justify-center py-3">
-            <h2 className="text-xl font-bold text-[#046a81] uppercase tracking-wide text-center">
-              Patient Education
+    <div className="min-h-[100dvh] bg-[#f3e8d4] py-10 px-4">
+      <div className="max-w-3xl mx-auto text-center space-y-6">
+        {data && data.length > 0 ? (
+          <>
+            <img
+              src="/eating-habit/main-icon.svg"
+              alt="Result"
+              className="mx-auto w-[350px] h-auto"
+            />
+
+            <h2 className="font-semibold text-[#046a81] flex items-center justify-center gap-2">
+              <FaSquareCheck className="text-green-600" />
+              You have chosen
             </h2>
-          </div>
-          <ul className="space-y-3 list-none bg-gray-100 p-4 rounded-lg shadow-sm border border-gray-200">
-            {data.map((detail, index) => (
-              <li
-                key={index}
-                className="flex items-center justify-between w-full p-3 rounded-md hover:bg-gray-200 transition-colors duration-200"
-              >
-                <div className="flex items-center space-x-4 flex-1">
-                  <FaSquareCheck size={24} className="text-teal-600 flex-shrink-0" />
-                  <p className="text-gray-700 font-medium text-base flex-1">
-                    {detail.title.split("_").map(word => word.toUpperCase()).join(" ")}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = detail.videoUrl;
-                    link.download = `${detail.title}.${detail.fileType}`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="ml-4 p-3 bg-orange-500 hover:bg-orange-600 rounded-md text-white transition-colors duration-200 flex items-center justify-center flex-shrink-0"
+
+            <ul className="grid gap-4 md:grid-cols-2 px-2 md:px-6">
+              {data.map((detail, index) => (
+                <li
+                  key={index}
+                  className="rounded-lg flex items-center justify-between px-4 space-y-3 hover:shadow-lg transition"
                 >
-                  <FiDownload size={18} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p className="text-gray-500">No content available for this region.</p>
-      )}
+                    <img
+                        src={`/eating-habit/${detail.title.toLowerCase().replace(/\s+/g, '_')}.svg`}
+                        alt={detail.title}
+                        className="w-[40vw] h-auto object-contain"
+                    />
+                    <div className="flex flex-col justify-center items-center gap-2">
+                        <img src={`/eating-habit/${detail.title.toLowerCase().replace(/\s+/g, '_')}-text.svg`} alt="text" className="w-23" />
+                        <button
+                            onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = detail.videoUrl;
+                                link.download = `${detail.title}.${detail.fileType}`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-400 hover:bg-teal-600 text-white rounded-md text-sm"
+                        >
+                            <FiDownload size={16} />
+                            <p className="text-xs">Download</p>
+                        </button>
+                    </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-gray-600 text-lg">No content available for this region.</p>
+        )}
+      </div>
     </div>
   );
 };

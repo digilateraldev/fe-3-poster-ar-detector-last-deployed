@@ -264,32 +264,39 @@ const BMISelectionAppTailwind = () => {
       zoneTimeoutRef.current = setTimeout(() => {
         if (zoneName && zoneInfo[zoneName]) {
           setDetectedRegion(zoneName);
-          setShowToast(true);
+          // setShowToast(true);
+          handleSubmit(zoneName);
         }
       }, 300);
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (detectedRegion) => {
     try {
       setIsProcessing(true);
       
-      if (!qrId || !detectedRegion) {
+      // Get qrId from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentQrId = urlParams.get("qrId");
+      
+      if (!currentQrId || !detectedRegion) {
         alert(
           "Missing QR ID or Region.\n\nqrId: " +
-            qrId +
+            currentQrId +
             "\nregion: " +
             detectedRegion
         );
         return;
       }
 
-      await apiUtils.post("/selection/store", {
-        qrId,
-        selection: detectedRegion,
-      });
+      // await apiUtils.post("/selection/store", {
+      //   qrId: currentQrId,
+      //   selection: detectedRegion,
+      // });
 
-      window.location.href = `/eating-habit/selection/result?qrId=${qrId}&region=${detectedRegion}`;
+      // window.location.href = `/eating-habit/selection/result?qrId=${currentQrId}&region=${detectedRegion}`;
+      window.location.replace(`/eating-habit/selection/result?qrId=${currentQrId}&region=${detectedRegion}`);
+
     } catch (err) {
       let errorMessage = "Submission failed. Please try again.";
       if (err?.message) {
@@ -315,12 +322,38 @@ const BMISelectionAppTailwind = () => {
     const urlParams = new URLSearchParams(window.location.search);
     setQrId(urlParams.get("qrId"));
 
-    const isPointInZone = (point, zone) => {
+    const isPointInZone = (point, zone, buffer = 80) => {
       const [x, y] = point;
+      
+      // Create a smaller zone by adding buffer inward from all edges
+      const bufferedZone = [];
+      const centerX = zone.reduce((sum, pt) => sum + pt[0], 0) / zone.length;
+      const centerY = zone.reduce((sum, pt) => sum + pt[1], 0) / zone.length;
+      
+      for (let i = 0; i < zone.length; i++) {
+        const [zx, zy] = zone[i];
+        // Move each point toward the center by buffer amount
+        const dx = centerX - zx;
+        const dy = centerY - zy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > buffer) {
+          const ratio = (distance - buffer) / distance;
+          bufferedZone.push([
+            centerX - dx * ratio,
+            centerY - dy * ratio
+          ]);
+        } else {
+          // If buffer is too large, use original point
+          bufferedZone.push([zx, zy]);
+        }
+      }
+      
+      // Check if point is inside the buffered (smaller) zone
       let inside = false;
-      for (let i = 0, j = zone.length - 1; i < zone.length; j = i++) {
-        const [xi, yi] = zone[i];
-        const [xj, yj] = zone[j];
+      for (let i = 0, j = bufferedZone.length - 1; i < bufferedZone.length; j = i++) {
+        const [xi, yi] = bufferedZone[i];
+        const [xj, yj] = bufferedZone[j];
         const intersect =
           yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
         if (intersect) inside = !inside;
@@ -437,7 +470,7 @@ const BMISelectionAppTailwind = () => {
           if (resultRef.current) {
             resultRef.current.textContent = detected
               ? `Detected: ${detected} (${detectionMode} mode)`
-              : `Pointing outside zones (${detectionMode} mode)`;
+              : "Point to select your eating style";
           }
 
           handleZoneDetection(detected);
@@ -447,11 +480,15 @@ const BMISelectionAppTailwind = () => {
             pointerRef.current.style.display = "none";
           }
           if (resultRef.current) {
-            resultRef.current.textContent = "No finger detected";
+            resultRef.current.textContent = posterInView ? "No finger detected" : "Show all 4 markers";
           }
-          setWarningMessage(
-            "👆 Hand not detected. Keep your index finger visible."
-          );
+          if (posterInView) {
+            setWarningMessage(
+              "👆 Hand not detected. Keep your index finger visible."
+            );
+          } else {
+            setWarningMessage("");
+          }
           handleZoneDetection(null);
         }
       });
