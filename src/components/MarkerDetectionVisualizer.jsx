@@ -12,10 +12,10 @@ const MarkerDetectionVisualizer = () => {
 
   // Color palette for different marker IDs (base colors)
   const baseMarkerColors = {
-    1: '#FF0000', // Red
-    2: '#00FF00', // Green  
-    3: '#0000FF', // Blue
-    4: '#FFFF00', // Yellow
+    2: '#FF0000', // Red
+    13: '#00FF00', // Green  
+    6: '#0000FF', // Blue
+    3: '#FFFF00', // Yellow
   };
 
   // Size-based color variations (lighter/darker shades for different sizes)

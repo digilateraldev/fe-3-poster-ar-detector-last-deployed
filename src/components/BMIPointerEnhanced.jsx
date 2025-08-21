@@ -948,3 +948,7 @@ const BMIPointerEnhanced = ({ onSelectionComplete, qrId: propQrId }) => {
 };
 
 export default BMIPointerEnhanced;
+
+
+
+//the things mindful hurry and distracted are teh region that we 
